@@ -1,0 +1,91 @@
+version: '3.9'
+
+services:
+  library-api:
+    container_name: library-api 
+    restart: always
+    build: 
+      context: ./api
+      dockerfile: Dockerfile.dev
+    volumes:
+      - /app/node_modules
+      - ./api:/app
+    # ports:
+    #   - 5000:5000
+    depends_on:
+      - mongodb
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb
+    networks:
+      - net
+
+  client:
+    restart: always
+    build: 
+      context: ./client
+      dockerfile: Dockerfile.dev
+    container_name: client
+    volumes:
+      - /app/node_modules
+      - ./client:/app
+    # ports:
+    #   - 3000:3000
+    depends_on:
+      - library-api
+    networks:
+      - net
+
+  mongodb:
+    image: mongo
+    restart: always
+    ports:
+      - 27017:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - net
+
+  mongo-express:
+    image: mongo-express
+    depends_on:
+      - mongodb
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ROOT_USERNAME}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ROOT_PASSWORD}
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin123456  
+    networks:
+      - net
+
+  nginx:
+    restart: always
+    depends_on:
+      - library-api
+      - client
+    build: 
+      context: ./nginx
+      dockerfile: Dockerfile.dev
+    ports:
+      - 8080:80
+    networks:
+      - net
+  
+
+
+networks:
+  net:
+    driver: bridge
+
+volumes:
+  mongodb-data:
+    driver: local
+      
+  
+    
